@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Arabic RTL Fix — Claude",
+  "version": "1.0.0",
+  "description": "إصلاح اتجاه النص العربي على Claude.ai — يعمل تلقائياً مع كل رسالة جديدة بدون الحاجة لتحديث الصفحة",
+
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/*"],
+      "js":  ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none';"
+  },
+
+  "permissions": [],
+  "host_permissions": ["https://claude.ai/*"],
+
+  "icons": {
+    "16":  "icons/icon16.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
