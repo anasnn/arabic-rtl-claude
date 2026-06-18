@@ -4,6 +4,25 @@
 
 ---
 
+## ⬇️ Direct Download
+
+**[⬇ Download arabic-rtl-claude.zip](https://github.com/anasnn/arabic-rtl-claude/archive/refs/heads/main.zip)**
+
+> After downloading, unzip the file. You'll get a folder called `arabic-rtl-claude-main` — load **that folder** in Chrome (see Installation below).
+
+---
+
+## 🚀 Installation (Developer Mode)
+
+1. **[⬇ Download the ZIP](https://github.com/anasnn/arabic-rtl-claude/archive/refs/heads/main.zip)** and unzip it
+2. Open Chrome → go to **`chrome://extensions`**
+3. Enable **Developer mode** (toggle in the top-right corner)
+4. Click **Load unpacked**
+5. Select the **`arabic-rtl-claude-main`** folder inside the unzipped archive
+6. Navigate to [claude.ai](https://claude.ai) — done ✓
+
+---
+
 ## ✨ What It Does
 
 Claude.ai renders all text left-to-right by default. When a response contains Arabic, the text
@@ -13,28 +32,20 @@ This extension watches Claude's DOM in real-time and:
 
 - **Detects Arabic text** in every new response as it streams in
 - **Sets `direction: rtl`** on each Arabic block element automatically
-- **Handles streaming** — applies RTL while Claude is still typing, confirmed when the response is stable
-- **Never misses a response** — a root-level MutationObserver + attribute watcher catches every new bubble
+- **Handles streaming** — applies RTL while Claude is still typing, re-confirmed when the response is stable
+- **Never misses a response** — root MutationObserver + `data-is-streaming` attribute watcher
+- **Handles React reconciliation** — re-applies RTL at 120ms / 400ms / 900ms / 2000ms after each response
+- **Persistent 3s rescan** — catches anything React quietly cleared
 - **Preserves code blocks** — `<pre>` and `<code>` are always kept LTR
 - **Syncs the input box** — the textarea switches direction as you type
 - **Handles SPA navigation** — detects when you switch chats and re-scans
 
 ---
 
-## 🚀 Installation (Developer Mode)
-
-1. Clone or download this repo
-2. Open Chrome → `chrome://extensions`
-3. Enable **Developer mode** (top-right toggle)
-4. Click **Load unpacked** and select the `arabic-rtl-claude` folder
-5. Navigate to [claude.ai](https://claude.ai) — done ✓
-
----
-
 ## 🛠 How It Works
 
 ### Detection
-Text nodes are walked with `TreeWalker`. A block is marked RTL when ≥ 25 % of its
+Text nodes are walked with `TreeWalker`. A block is marked RTL when ≥ 25% of its
 non-whitespace characters fall in Unicode Arabic ranges:
 
 | Range | Block |
@@ -45,19 +56,27 @@ non-whitespace characters fall in Unicode Arabic ranges:
 | `U+FB50–U+FDFF` | Arabic Presentation Forms-A |
 | `U+FE70–U+FEFF` | Arabic Presentation Forms-B |
 
+### Block Targeting (two-pass strategy)
+For each Arabic text node, `nearestBlock()` runs two passes:
+1. **Pass 1** — climb upward looking for semantic block elements: `P`, `LI`, `H1-H6`, `BLOCKQUOTE`, `TD`, `TH`, etc.
+2. **Pass 2** — if no semantic block found, fall back to generic blocks: `DIV`, `SECTION`, `ARTICLE`
+
+Inline elements (`SPAN` etc.) are intentionally excluded — `text-align: right` has no visual effect on them.
+
 ### Streaming
 Each assistant response container gets a dedicated `MutationObserver` that:
-- Fires a live scan on every mutation (so RTL appears while Claude is still writing)
-- Resets a 600 ms stability timer on each new mutation
-- Disconnects after 600 ms of silence → does a final authoritative scan
-- Has a 30 s absolute safety timeout for very long responses
+- Fires a live scan on every mutation (RTL appears while Claude is still writing)
+- Resets a 600ms stability timer on each new mutation
+- Disconnects after 600ms of silence → does final scan + retries at 120ms / 400ms / 900ms / 2000ms
+- Has a 30s absolute safety timeout for very long responses
 
-An additional `attrObserver` watches for the `data-is-streaming` attribute being
-removed — triggering a final scan the moment Claude marks a response complete.
+An `attrObserver` also watches for `data-is-streaming` being removed, triggering a final scan + 4 retries the moment Claude marks a response complete.
+
+### Persistent Safety Net
+A global `setInterval` re-scans the entire page every 3 seconds. This catches any RTL styling that React's virtual DOM reconciliation silently cleared after a re-render.
 
 ### SPA Navigation
-A 500 ms interval polls `location.href`. When the URL changes (new chat), the
-extension re-scans and re-attaches all input watchers after 800 ms.
+A 500ms interval polls `location.href`. When the URL changes (new chat), the extension re-scans and re-attaches all input watchers after 800ms.
 
 ---
 
@@ -89,18 +108,23 @@ No external network requests. No data collection. No background service worker.
 
 ## 📝 Changelog
 
+### v1.1.0
+- **Fix**: `SPAN` removed from block targets — inline elements can't carry `text-align`
+- **Fix**: `nearestBlock()` two-pass strategy: prefers semantic blocks over `DIV`
+- **Fix**: React reconciliation retries at 120ms / 400ms / 900ms / 2000ms after stream done
+- **Fix**: `data-is-streaming` removal triggers scan + 4 retries
+- **Fix**: CDS portal divs (`data-cds-portal`) excluded from stream watchers
+- **New**: Persistent 3-second global rescan as a continuous safety net
+- **New**: Live RTL applied while Claude is still typing
+
 ### v1.0.0
 - Full rewrite: robust streaming detection, no refresh needed
 - Root `MutationObserver` + `attrObserver` for `data-is-streaming`
-- Per-container streaming watchers with 30 s safety timeout
-- Live RTL application while Claude is still typing
+- Per-container streaming watchers with 30s safety timeout
 - SPA navigation detection
-- Deferred re-scans at 1 s, 3 s, 6 s for lazy-rendered content
-- Full revert of blocks that switch from Arabic → non-Arabic on regeneration
 
 ### v0.3.2 (legacy)
-- Streaming watcher with 8 s safety timeout
-- Delayed rescan at 2 s and 5 s
+- Streaming watcher with 8s safety timeout
 
 ---
 
